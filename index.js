@@ -1,27 +1,58 @@
 // index.js
 require('dotenv').config();
-const { Bot } = require('grammy');
+const express = require('express');
+const { Bot, webhookCallback } = require('grammy');
 
-// Replace 'YOUR_BOT_TOKEN' with the token from BotFather
-// Or better: create a .env file and store it there as BOT_TOKEN=your_token
-const bot = new Bot(process.env.BOT_TOKEN || 'YOUR_BOT_TOKEN');
+// 1. Initialize your bot
+const bot = new Bot(process.env.BOT_TOKEN);
 
-// 1. Reply to the /start command
+// 2. Your bot's logic (commands, messages, etc.)
 bot.command('start', (ctx) => {
-  ctx.reply('Hello! I am your JavaScript bot. How can I help you?');
+  ctx.reply('Hello! I am running via Webhooks! 🚀');
 });
 
-// 2. Reply to the /help command
 bot.command('help', (ctx) => {
-  ctx.reply('Send me a message and I will echo it back to you!');
+  ctx.reply('Send me any text and I will echo it back.');
 });
 
-// 3. Echo any text message back to the user
 bot.on('message:text', (ctx) => {
-  const userMessage = ctx.message.text;
-  ctx.reply(`You said: ${userMessage}`);
+  ctx.reply(`You said: ${ctx.message.text}`);
 });
 
-// 4. Start the bot using Long Polling (no domain needed for development)
-bot.start();
-console.log('Bot is running and listening for messages...');
+// 3. Create an Express web server
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+// IMPORTANT: Tell Express to parse JSON bodies from Telegram
+app.use(express.json());
+
+// 4. The webhook endpoint (path)
+// Using the bot token as the path adds a layer of security.
+// Only Telegram (or someone who knows your token) can hit this URL.
+const WEBHOOK_PATH = `/webhook/${process.env.BOT_TOKEN}`;
+
+// Connect the bot to the Express route
+app.post(WEBHOOK_PATH, webhookCallback(bot, 'express'));
+
+// 5. Health check for Render (keeps the service happy)
+app.get('/health', (req, res) => {
+  res.status(200).send('OK');
+});
+
+// 6. Start the server
+app.listen(PORT, async () => {
+  console.log(`Web server is running on port ${PORT}`);
+
+  // 7. Set the webhook URL for Telegram (this happens once when the server starts)
+  // Render automatically sets the environment variable RENDER_EXTERNAL_URL
+  const baseUrl = process.env.RENDER_EXTERNAL_URL || 'https://your-app-url.onrender.com';
+  const webhookUrl = `${baseUrl}${WEBHOOK_PATH}`;
+
+  try {
+    // Tell Telegram where to send updates
+    await bot.api.setWebhook(webhookUrl);
+    console.log(`✅ Webhook successfully set to: ${webhookUrl}`);
+  } catch (error) {
+    console.error('❌ Failed to set webhook:', error);
+  }
+});
