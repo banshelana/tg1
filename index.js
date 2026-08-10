@@ -75,14 +75,22 @@ bot.command('media', async (ctx) => {
 
 // --- /keyboard - Reply Keyboard (replaces the user's typing bar) ---
 bot.command('keyboard', async (ctx) => {
-  const keyboard = new Keyboard()
-    .text('📍 Share Location').requestLocation() // Requests GPS
-    .row()
-    .text('📞 Share Contact').requestContact() // Requests phone
-    .row()
-    .text('✅ Done')
-    .row()
-    .text('❌ Cancel');
+  const keyboard = {
+    keyboard: [
+      [
+        { text: '📍 Share Location', request_location: true },
+        { text: '📞 Share Contact', request_contact: true }
+      ],
+      [
+        { text: '✅ Done' }
+      ],
+      [
+        { text: '❌ Cancel' }
+      ]
+    ],
+    resize_keyboard: true,     // Make buttons smaller
+    one_time_keyboard: false   // Keep keyboard after use
+  };
 
   await ctx.reply(
     'Here is a custom keyboard!\n\n' +
